@@ -13,10 +13,18 @@ defmodule Auction do
   end
 
   def get_item_with_bids(id) do
+    query = from(b in Bid, order_by: [desc: :amount])
+
     id
     |> get_item()
-    |> @repo.preload(bids: [:user])
+    |> @repo.preload(bids: {query, [:user]})
   end
+
+  # def get_bids_desc(id) do
+  #   id
+  #   |> get_item()
+  #   |> @repo.preload([bids: from(b in Bid, order_by: b.amount)])
+  # end
 
   def get_item_by(attrs) do
     @repo.get_by(Item, attrs)
@@ -55,16 +63,16 @@ defmodule Auction do
 
   def get_user_by_username_and_password(username, password) do
     with user when not is_nil(user) <- @repo.get_by(User, %{username: username}),
-    true <- Password.verify_with_hash(password, user.hashed_password) do
+         true <- Password.verify_with_hash(password, user.hashed_password) do
       user
     else
-      _ -> Password.dummy_verify
+      _ -> Password.dummy_verify()
     end
   end
 
-  def insert_bid(params) do
+  def insert_bid(params, high_bid) do
     %Bid{}
-    |> Bid.changeset(params)
+    |> Bid.changeset(params, high_bid)
     |> @repo.insert()
   end
 
@@ -72,12 +80,36 @@ defmodule Auction do
 
   def get_bids_for_user(user) do
     query =
-      from b in Bid,
-      where: b.user_id == ^user.id,
-      order_by: [desc: :inserted_at],
-      preload: :item,
-      limit: 10
+      from(b in Bid,
+        where: b.user_id == ^user.id,
+        order_by: [desc: :inserted_at],
+        preload: :item,
+        limit: 10
+      )
+
     @repo.all(query)
   end
 
+  def get_highest_bid(id) do
+    unless has_no_bids?(id) do
+      query =
+        from(b in Bid,
+          where: b.item_id == ^id,
+          order_by: [desc: :amount]
+        )
+
+      first =
+        @repo.all(query)
+        |> Enum.at(0)
+
+      first.amount
+    else
+      0
+    end
+  end
+
+  def has_no_bids?(id) do
+    item = get_item_with_bids(id)
+    item.bids |> Enum.empty?()
+  end
 end

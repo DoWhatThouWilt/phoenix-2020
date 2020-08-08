@@ -9,10 +9,11 @@ defmodule Auction.Bid do
     timestamps()
   end
 
-  def changeset(bid, params \\ %{}) do
+  def changeset(bid, params \\ %{}, high_bid \\ 0) do
     bid
     |> cast(params, [:amount, :user_id, :item_id])
     |> validate_required([:amount, :user_id, :item_id])
+    |> validate_number(:amount, greater_than: high_bid, message: "Your bid must be greater than the highest bidder's.")
     |> assoc_constraint(:item)
     |> assoc_constraint(:user)
   end

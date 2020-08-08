@@ -4,10 +4,11 @@ defmodule AuctionWeb.BidController do
 
   def create(conn, %{"bid" => %{"amount" => amount}, "item_id" => item_id}) do
     user_id = conn.assigns.current_user.id
-    case Auction.insert_bid(%{amount: amount, item_id: item_id, user_id: user_id}) do
+    high_bid = Auction.get_highest_bid(item_id)
+    case Auction.insert_bid(%{amount: amount, item_id: item_id, user_id: user_id}, high_bid) do
     {:ok, bid} -> redirect(conn, to: Routes.item_path(conn, :show, bid.item_id))
     {:error, bid} ->
-      item = Auction.get_item(item_id)
+      item = Auction.get_item_with_bids(item_id)
       render(conn, AuctionWeb.ItemView, "show.html", item: item, bid: bid)
     end
   end
